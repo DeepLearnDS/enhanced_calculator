@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Any
 from app.calculation import Calculation
-
+from app.logger import Logger
 
 class HistoryObserver(ABC):
     """
@@ -48,10 +48,10 @@ class LoggingObserver(HistoryObserver):
         """
         if calculation is None:
             raise AttributeError("Calculation cannot be None")
-        logging.info(
-            f"Calculation performed: {calculation.operation} "
-            f"({calculation.operand1}, {calculation.operand2}) = "
-            f"{calculation.result}"
+        Logger.info(
+             f"Calculation performed: {calculation.operation} "
+             f"({calculation.operand1}, {calculation.operand2}) = "
+             f"{calculation.result}"
         )
 
 
