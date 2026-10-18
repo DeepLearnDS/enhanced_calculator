@@ -11,6 +11,10 @@ from app.operations import (
     Division,
     Power,
     Root,
+    Modulus,
+    IntegerDivision,
+    Percentage,
+    AbsoluteDifference,
     OperationFactory,
 )
 
@@ -194,6 +198,10 @@ class TestOperationFactory:
             'divide': Division,
             'power': Power,
             'root': Root,
+            "modulus": Modulus,
+            "int_divide": IntegerDivision,
+            "percent": Percentage,
+            "abs_diff": AbsoluteDifference,
         }
 
         for op_name, op_class in operation_map.items():
@@ -210,14 +218,20 @@ class TestOperationFactory:
 
     def test_register_valid_operation(self):
         """Test registering a new valid operation."""
+
         class NewOperation(Operation):
             def execute(self, a: Decimal, b: Decimal) -> Decimal:
                 return a
 
-        OperationFactory.register_operation("new_op", NewOperation)
-        operation = OperationFactory.create_operation("new_op")
-        assert isinstance(operation, NewOperation)
+        original_operations = OperationFactory._operations.copy()
 
+        try:
+            OperationFactory.register_operation("new_op", NewOperation)
+            operation = OperationFactory.create_operation("new_op")
+            assert isinstance(operation, NewOperation)
+        finally:
+            OperationFactory._operations.clear()
+            OperationFactory._operations.update(original_operations)
     def test_register_invalid_operation(self):
         """Test registering an invalid operation class raises error."""
         class InvalidOperation:
@@ -225,3 +239,79 @@ class TestOperationFactory:
 
         with pytest.raises(TypeError, match="Operation class must inherit"):
             OperationFactory.register_operation("invalid", InvalidOperation)
+
+
+# Additional tests for the new calculator operations
+
+@pytest.mark.parametrize(
+    "operation,a,b,expected",
+    [
+        (Modulus(), "10", "3", "1"),
+        (Modulus(), "10.5", "3", "1.5"),
+        (Modulus(), "-10", "3", "-1"),
+        (IntegerDivision(), "10", "3", "3"),
+        (IntegerDivision(), "15", "5", "3"),
+        (IntegerDivision(), "-10", "3", "-3"),
+        (Percentage(), "25", "100", "25"),
+        (Percentage(), "1", "4", "25"),
+        (Percentage(), "50", "200", "25"),
+        (AbsoluteDifference(), "3", "8", "5"),
+        (AbsoluteDifference(), "-5", "3", "8"),
+        (AbsoluteDifference(), "5.5", "2.5", "3"),
+        (AbsoluteDifference(), "4", "4", "0"),
+    ],
+)
+def test_new_operations_additional_cases(operation, a, b, expected):
+    """Test additional valid cases for the new operations."""
+    result = operation.execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        Modulus(),
+        IntegerDivision(),
+        Percentage(),
+    ],
+)
+def test_new_operations_reject_zero_denominator(operation):
+    """Test that operations requiring a nonzero divisor reject zero."""
+    with pytest.raises(ValidationError):
+        operation.execute(Decimal("10"), Decimal("0"))
+
+
+def test_modulus_negative_divisor():
+    """Test modulus with a negative divisor."""
+    result = Modulus().execute(Decimal("10"), Decimal("-3"))
+    assert result == Decimal("1")
+
+
+def test_factory_registers_all_new_operations():
+    """Verify that the factory creates all four new operations."""
+    expected_classes = {
+        "modulus": Modulus,
+        "int_divide": IntegerDivision,
+        "percent": Percentage,
+        "abs_diff": AbsoluteDifference,
+    }
+
+    for name, expected_class in expected_classes.items():
+        operation = OperationFactory.create_operation(name)
+        assert isinstance(operation, expected_class)
+
+
+def test_factory_new_operations_are_case_insensitive():
+    """Verify uppercase operation names work."""
+    assert isinstance(
+        OperationFactory.create_operation("MODULUS"), Modulus
+    )
+    assert isinstance(
+        OperationFactory.create_operation("INT_DIVIDE"), IntegerDivision
+    )
+    assert isinstance(
+        OperationFactory.create_operation("PERCENT"), Percentage
+    )
+    assert isinstance(
+        OperationFactory.create_operation("ABS_DIFF"), AbsoluteDifference
+    )
