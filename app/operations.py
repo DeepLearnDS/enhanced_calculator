@@ -248,6 +248,42 @@ class Root(Operation):
         self.validate_operands(a, b)
         return Decimal(pow(float(a), 1 / float(b)))
 
+class Modulus(Operation):
+    """Calculate the remainder after division."""
+
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        self.validate_operands(a, b)
+        if b == 0:
+            raise ValidationError("Modulus by zero is undefined")
+        return a % b
+
+
+class IntegerDivision(Operation):
+    """Calculate the integer quotient."""
+
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        self.validate_operands(a, b)
+        if b == 0:
+            raise ValidationError("Integer division by zero is undefined")
+        return a // b
+
+
+class Percentage(Operation):
+    """Calculate a as a percentage of b."""
+
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        self.validate_operands(a, b)
+        if b == 0:
+            raise ValidationError("Percentage denominator cannot be zero")
+        return (a / b) * Decimal("100")
+
+
+class AbsoluteDifference(Operation):
+    """Calculate the absolute difference between two numbers."""
+
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        self.validate_operands(a, b)
+        return abs(a - b)
 
 class OperationFactory:
     """
@@ -265,7 +301,11 @@ class OperationFactory:
         'multiply': Multiplication,
         'divide': Division,
         'power': Power,
-        'root': Root
+        'root': Root,
+        'modulus': Modulus,
+        'int_divide': IntegerDivision,
+        'percent': Percentage,
+        'abs_diff': AbsoluteDifference,
     }
 
     @classmethod
