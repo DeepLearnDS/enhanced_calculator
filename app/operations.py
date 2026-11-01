@@ -189,23 +189,16 @@ class Power(Operation):
             ValidationError: If the exponent is negative.
         """
         super().validate_operands(a, b)
-        if b < 0:
-            raise ValidationError("Negative exponents not supported")
-
     def execute(self, a: Decimal, b: Decimal) -> Decimal:
-        """
-        Calculate one number raised to the power of another.
-
-        Args:
-            a (Decimal): Base number.
-            b (Decimal): Exponent.
-
-        Returns:
-            Decimal: Result of the exponentiation.
-        """
+        """Execute power operation."""
         self.validate_operands(a, b)
-        return Decimal(pow(float(a), float(b)))
 
+        if a == 0 and b < 0:
+            raise ValidationError(
+                "Zero cannot be raised to a negative exponent"
+            )
+
+        return Decimal(pow(float(a), float(b)))
 
 class Root(Operation):
     """

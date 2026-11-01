@@ -143,21 +143,17 @@ class TestPower(BaseOperationTest):
     """Test Power operation."""
 
     operation_class = Power
+
     valid_test_cases = {
         "positive_base_and_exponent": {"a": "2", "b": "3", "expected": "8"},
         "zero_exponent": {"a": "5", "b": "0", "expected": "1"},
         "one_exponent": {"a": "5", "b": "1", "expected": "5"},
         "decimal_base": {"a": "2.5", "b": "2", "expected": "6.25"},
         "zero_base": {"a": "0", "b": "5", "expected": "0"},
+        "negative_exponent": {"a": "2", "b": "-3", "expected": "0.125"},
     }
-    invalid_test_cases = {
-        "negative_exponent": {
-            "a": "2",
-            "b": "-3",
-            "error": ValidationError,
-            "message": "Negative exponents not supported"
-        },
-    }
+
+    invalid_test_cases = {}
 
 
 class TestRoot(BaseOperationTest):

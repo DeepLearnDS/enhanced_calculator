@@ -147,12 +147,11 @@ def calculator_repl():
                         # Perform the calculation
                         result = calc.perform_operation(a, b)
 
-                        # Normalize Decimal results for display
+                        # Display result using configured precision
                         if isinstance(result, Decimal):
-                            result = result.normalize()
+                           result = f"{result:.{calc.config.precision}f}".rstrip("0").rstrip(".")
 
                         print(success(f"\nResult: {result}"))
-
                     except (ValidationError, OperationError, ValueError) as e:
                         print(error(f"Error: {e}"))
 

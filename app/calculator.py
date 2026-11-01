@@ -171,66 +171,57 @@ class Calculator:
         b: Union[str, Number]
     ) -> CalculationResult:
         """
-        Perform calculation with the current operation.
-
-        Validates and sanitizes user inputs, executes the calculation using the
-        current operation strategy, updates the history, and notifies observers.
-
-        Args:
-            a (Union[str, Number]): The first operand, can be a string or a numeric type.
-            b (Union[str, Number]): The second operand, can be a string or a numeric type.
-
-        Returns:
-            CalculationResult: The result of the calculation.
-
-        Raises:
-            OperationError: If no operation is set or if the operation fails.
-            ValidationError: If input validation fails.
+        Execute an operation, record its result, and notify observers.
         """
         if not self.operation_strategy:
             raise OperationError("No operation set")
 
         try:
-            # Validate and convert inputs to Decimal
             validated_a = InputValidator.validate_number(a, self.config)
             validated_b = InputValidator.validate_number(b, self.config)
 
-            # Execute the operation strategy
-            result = self.operation_strategy.execute(validated_a, validated_b)
+            # Execute the operation only once.
+            result = self.operation_strategy.execute(
+                validated_a,
+                validated_b
+            )
 
-            # Create a new Calculation instance with the operation details
+            # Store the existing result without recalculating it.
             calculation = Calculation(
                 operation=str(self.operation_strategy),
                 operand1=validated_a,
-                operand2=validated_b
+                operand2=validated_b,
+                result=result
             )
 
-            # Save the current state to the undo stack before making changes
-            self.undo_stack.append(CalculatorMemento(self.history.copy()))
+            # Save current state for undo.
+            self.undo_stack.append(
+                CalculatorMemento(self.history.copy())
+            )
 
-            # Clear the redo stack since new operation invalidates the redo history
+            # A new calculation clears the redo history.
             self.redo_stack.clear()
 
-            # Append the new calculation to the history
+            # Add calculation to history.
             self.history.append(calculation)
 
-            # Ensure the history does not exceed the maximum size
             if len(self.history) > self.config.max_history_size:
                 self.history.pop(0)
 
-            # Notify all observers about the new calculation
+            # Notify observers.
             self.notify_observers(calculation)
 
             return result
 
         except ValidationError as e:
-            # Log and re-raise validation errors
             logging.error(f"Validation error: {str(e)}")
             raise
+
         except Exception as e:
-            # Log and raise operation errors for any other exceptions
             logging.error(f"Operation failed: {str(e)}")
-            raise OperationError(f"Operation failed: {str(e)}")
+            raise OperationError(
+            f"Operation failed: {str(e)}"
+            ) from e
 
     def save_history(self) -> None:
         """
@@ -261,12 +252,16 @@ class Calculator:
                 # Create a pandas DataFrame from the history data
                 df = pd.DataFrame(history_data)
                 # Write the DataFrame to a CSV file without the index
-                df.to_csv(self.config.history_file, index=False)
+                df.to_csv(
+                    self.config.history_file,
+                    index=False,
+                    encoding=self.config.default_encoding
+                )
                 logging.info(f"History saved successfully to {self.config.history_file}")
             else:
                 # If history is empty, create an empty CSV with headers
                 pd.DataFrame(columns=['operation', 'operand1', 'operand2', 'result', 'timestamp']
-                           ).to_csv(self.config.history_file, index=False)
+                           ).to_csv(self.config.history_file, index=False, encoding=self.config.default_encoding)
                 logging.info("Empty history saved")
 
         except Exception as e:
@@ -287,7 +282,7 @@ class Calculator:
         try:
             if self.config.history_file.exists():
                 # Read the CSV file into a pandas DataFrame
-                df = pd.read_csv(self.config.history_file)
+                df = pd.read_csv(self.config.history_file, encoding=self.config.default_encoding)
                 if not df.empty:
                     # Deserialize each row into a Calculation instance
                     self.history = [
@@ -333,16 +328,11 @@ class Calculator:
         return pd.DataFrame(history_data)
 
     def show_history(self) -> List[str]:
-        """
-        Get formatted history of calculations.
+        """Get formatted calculation history."""
 
-        Returns a list of human-readable strings representing each calculation.
-
-        Returns:
-            List[str]: List of formatted calculation history entries.
-        """
         return [
-            f"{calc.operation}({calc.operand1}, {calc.operand2}) = {calc.result}"
+            f"{calc.operation}({calc.operand1}, {calc.operand2}) = "
+            f"{calc.format_result(self.config.precision)}"
             for calc in self.history
         ]
 

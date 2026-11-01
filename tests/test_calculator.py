@@ -254,7 +254,7 @@ def test_load_empty_history(calculator):
             'result',
             'timestamp'
         ]
-    ).to_csv(calculator.config.history_file, index=False)
+    ).to_csv(calculator.config.history_file, index=False, encoding=calculator.config.default_encoding)
 
     calculator.load_history()
 
@@ -402,8 +402,9 @@ def test_calculator_memento_to_dict_and_from_dict():
     """Test converting a calculator memento to and from a dictionary."""
     calculation = Calculation(
         operation="Addition",
-        operand1=2,
-        operand2=3
+        operand1=Decimal("2"),
+        operand2=Decimal("3"),
+        result=Decimal("5")
     )
 
     memento = CalculatorMemento(history=[calculation])
@@ -413,8 +414,9 @@ def test_calculator_memento_to_dict_and_from_dict():
     restored = CalculatorMemento.from_dict(data)
 
     assert len(restored.history) == 1
-    assert restored.history[0].operand1 == 2
-    assert restored.history[0].operand2 == 3
+    assert restored.history[0].operand1 == Decimal("2")
+    assert restored.history[0].operand2 == Decimal("3")
+    assert restored.history[0].result == Decimal("5")
 
 def test_calculator_uses_default_config():
     """Test Calculator creates a default config when none is provided."""
@@ -437,13 +439,9 @@ def test_calculator_uses_default_config():
 
     assert calculator.config == mock_config
 def test_calculation_unknown_operation():
-    """Test that an unknown operation raises OperationError."""
-    with pytest.raises(OperationError, match="Unknown operation"):
-        Calculation(
-            operation="Unknown",
-            operand1=Decimal("2"),
-            operand2=Decimal("3")
-        )
+    """Test that the operation factory rejects an unknown operation."""
+    with pytest.raises(ValueError, match="Unknown operation"):
+        OperationFactory.create_operation("unknown")
 
 
 def test_calculation_invalid_data():
@@ -465,22 +463,22 @@ def test_calculation_not_equal_to_other_type():
     calculation = Calculation(
         operation="Addition",
         operand1=Decimal("2"),
-        operand2=Decimal("3")
+        operand2=Decimal("3"),
+        result=Decimal("5")
     )
 
     assert calculation.__eq__("not a calculation") is NotImplemented
-
 
 def test_calculation_format_result():
     """Test formatting a calculation result."""
     calculation = Calculation(
         operation="Addition",
         operand1=Decimal("2"),
-        operand2=Decimal("3")
+        operand2=Decimal("3"),
+        result=Decimal("5")
     )
 
     assert calculation.format_result() == "5"
-
 
 @patch("builtins.input", side_effect=["add", "2", "3", "exit"])
 @patch("builtins.print")
@@ -505,3 +503,61 @@ def test_calculator_repl_invalid_second_number(mock_print, mock_input):
     calculator_repl()
 
     assert mock_print.called
+def test_all_operations_through_calculator(calculator):
+    operations = [
+        ("add", 2, 3, 5),
+        ("subtract", 5, 2, 3),
+        ("multiply", 4, 3, 12),
+        ("divide", 10, 2, 5),
+        ("power", 2, 3, 8),
+        ("root", 27, 3, 3),
+        ("modulus", 10, 3, 1),
+        ("int_divide", 10, 3, 3),
+        ("percent", 25, 100, 25),
+        ("abs_diff", 2, 5, 3),
+    ]
+
+    for name, a, b, expected in operations:
+        calculator.set_operation(OperationFactory.create_operation(name))
+        result = calculator.perform_operation(a, b)
+
+        assert result == Decimal(str(expected))
+        assert calculator.history[-1].result == Decimal(str(expected))
+
+def test_calculator_workflow_undo_redo(calculator):
+    calculator.set_operation(OperationFactory.create_operation("add"))
+    calculator.perform_operation(2, 3)
+
+    calculator.set_operation(OperationFactory.create_operation("multiply"))
+    calculator.perform_operation(4, 5)
+
+    assert len(calculator.history) == 2
+
+    calculator.undo()
+    assert len(calculator.history) == 1
+
+    calculator.redo()
+    assert len(calculator.history) == 2
+
+def test_calculator_workflow_save_and_load(calculator):
+    calculator.set_operation(OperationFactory.create_operation("add"))
+    calculator.perform_operation(2, 3)
+
+    calculator.set_operation(OperationFactory.create_operation("power"))
+    calculator.perform_operation(2, 3)
+
+    calculator.save_history()
+
+    new_calculator = Calculator(config=calculator.config)
+    new_calculator.load_history()
+
+    assert len(new_calculator.history) == 2
+    assert new_calculator.history[0].result == Decimal("5")
+    assert new_calculator.history[1].result == Decimal("8")
+def test_negative_power_through_calculator(calculator):
+    calculator.set_operation(OperationFactory.create_operation("power"))
+
+    result = calculator.perform_operation(2, -2)
+
+    assert result == Decimal("0.25")
+    assert calculator.history[-1].result == Decimal("0.25")

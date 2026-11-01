@@ -144,3 +144,50 @@ def test_history_file_property():
     config = CalculatorConfig(base_dir=Path('/new_base_dir'))
     assert config.history_file == Path('/new_base_dir/history/calculator_history.csv').resolve()
 
+def test_invalid_history_size_environment(monkeypatch):
+    monkeypatch.setenv('CALCULATOR_MAX_HISTORY_SIZE', 'abc')
+
+    with pytest.raises(ConfigurationError):
+        CalculatorConfig()
+
+
+def test_invalid_precision_environment(monkeypatch):
+    monkeypatch.setenv('CALCULATOR_PRECISION', 'abc')
+
+    with pytest.raises(ConfigurationError):
+        CalculatorConfig()
+
+
+def test_invalid_auto_save_environment(monkeypatch):
+    monkeypatch.setenv('CALCULATOR_AUTO_SAVE', 'maybe')
+
+    with pytest.raises(ConfigurationError):
+        CalculatorConfig()
+
+
+def test_nan_max_input_value():
+    config = CalculatorConfig(max_input_value=Decimal('NaN'))
+
+    with pytest.raises(ConfigurationError):
+        config.validate()
+
+
+def test_infinite_max_input_value():
+    config = CalculatorConfig(max_input_value=Decimal('Infinity'))
+
+    with pytest.raises(ConfigurationError):
+        config.validate()
+
+
+def test_zero_max_input_value():
+    config = CalculatorConfig(max_input_value=Decimal('0'))
+
+    with pytest.raises(ConfigurationError):
+        config.validate()
+
+
+def test_unsupported_encoding():
+    config = CalculatorConfig(default_encoding='invalid-encoding')
+
+    with pytest.raises(ConfigurationError, match='Unsupported encoding'):
+        config.validate()
